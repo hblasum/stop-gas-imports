@@ -26,8 +26,8 @@ energy_categories = {"household": ['Sheet 20', 'Sheet 98', 'Sheet 99'],
                      "other": sheetrange(49, 51) + ['Sheet 57'] + sheetrange(104, 106),
                      "transport": ['Sheet 56'] + sheetrange(87, 90) + sheetrange(93, 94) }
 
-table_item_names = ["gas_imports_russia", "household_old", "household_new", "commercial_old", "commercial_new",
-              "electricity_old", "electricity_new", "industry_old", "industry_new", "substitution", "balance", "transport_old", "transport_new", "other_old", "other_new"]
+table_item_names = ["gas_imports_russia", "household_old", "household_savings", "commercial_old", "commercial_savings",
+              "electricity_old", "electricity_savings", "industry_old", "industry_savings", "substitution", "balance", "transport_old", "transport_savings", "other_old", "other_savings"]
 table_item_summary = ["household_old", "commercial_old", "electricity_old", "industry_old", "transport_old", "other_old"]
 
 
@@ -106,8 +106,8 @@ def scenario(savings_rates, year):
                     ti[f"{energy_category}_old"] += pj
                     sums[f"{energy_category}_old"] += pj
                     print(f'{round(pj)}\t{country_name} {energy_category}: {ws["c6"].value} year {year}', file=dfile, flush=True)
-                    ti[f"{energy_category}_new"]+= pj * (1 - savings_rates[energy_category])
-                    sums[f"{energy_category}_new"] += pj * (1 - savings_rates[energy_category])
+                    ti[f"{energy_category}_savings"]+= pj * (1 - savings_rates[energy_category])
+                    sums[f"{energy_category}_savings"] += pj * (1 - savings_rates[energy_category])
                     ti["substitution"] += pj * savings_rates[energy_category]
                     sums["substitution"] += pj * savings_rates[energy_category]
 
