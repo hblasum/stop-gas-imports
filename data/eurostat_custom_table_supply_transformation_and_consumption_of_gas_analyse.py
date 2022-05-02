@@ -19,16 +19,17 @@ def sheetrange(begin, end):
         l.append(f"Sheet {i}")
     return l
 
-energy_categories = {"household": ['Sheet 20', 'Sheet 98', 'Sheet 99'],
+substitution_categories = {"imports:": [],
+                     "household": ['Sheet 20', 'Sheet 98', 'Sheet 99'],
                      "commercial": ['Sheet 96', 'Sheet 97'],
                      "electricity": ['Sheet 18', 'Sheet 19'],
                      "industry": sheetrange(21, 33) + ['Sheet 34', 'Sheet 55', 'Sheet 59'] + sheetrange(91, 92) + sheetrange(100, 103),
                      "other": sheetrange(49, 51) + ['Sheet 57'] + sheetrange(104, 106),
-                     "transport": ['Sheet 56'] + sheetrange(87, 90) + sheetrange(93, 94) }
+                     "transport": ['Sheet 56'] + sheetrange(87, 90) + sheetrange(93, 94)}
 
-table_item_names = ["gas_imports_russia", "household_old", "household_savings", "commercial_old", "commercial_savings",
+table_item_names = ["imports_old", "imports_savings", "household_old", "household_savings", "commercial_old", "commercial_savings",
               "electricity_old", "electricity_savings", "industry_old", "industry_savings", "substitution", "balance", "transport_old", "transport_savings", "other_old", "other_savings"]
-table_item_summary = ["household_old", "commercial_old", "electricity_old", "industry_old", "transport_old", "other_old"]
+table_item_summary = ["imports_old", "household_old", "commercial_old", "electricity_old", "industry_old", "transport_old", "other_old"]
 
 
 
@@ -54,10 +55,10 @@ def summary(entry,country,ti):
 
 sums = {}
 
-def scenario(savings_rates, year):
+def scenario(saving_rates, year):
     print(f"\n\nCalculation: year {year}; savings rates: ", end="")
-    for sr in savings_rates:
-        print(f"{sr}: {round(savings_rates[sr]*100)} %, ", end="")
+    for sr in saving_rates:
+        print(f"{sr}: {round(saving_rates[sr] * 100)} %, ", end="")
     print("\n")
     print("country\t", end="")
     for t in table_item_names:
@@ -82,11 +83,11 @@ def scenario(savings_rates, year):
         if year == 2020:
             colname = "k"
 
-        ti["gas_imports_russia"] = 0.0
+        ti["imports_old"] = 0.0
         for s in ["Sheet 1", "Sheet 3"]:
             if wbi[s][f"k{country}"].value is not None and not isinstance(wbi[s][f"k{country}"].value, str):
-                ti["gas_imports_russia"] += wbi[s][f"{colname}{country}"].value * unit_conversion
-        sums["gas_imports_russia"] += ti["gas_imports_russia"]
+                ti["imports_old"] += wbi[s][f"{colname}{country}"].value * unit_conversion
+        sums["imports_old"] += ti["imports_old"]
 
         for ws in wbs.worksheets:
             if ws.title == "Sheet 1":
@@ -99,19 +100,22 @@ def scenario(savings_rates, year):
                     if year == 2020:
                         colname = "j" # 2020 data not yet available, use 2019 data instead
                 print(f"{country_name}\t", end="")
-            for energy_category in energy_categories:
-                if ws[f"{colname}{country}"].value is not None and not isinstance(ws[f"{colname}{country}"].value, str) and ws.title in energy_categories[energy_category]:
+            for energy_category in substitution_categories:
+                if ws[f"{colname}{country}"].value is not None and not isinstance(ws[f"{colname}{country}"].value, str) and ws.title in substitution_categories[energy_category]:
                     tj = ws[f"{colname}{country}"].value  # value in TJ
                     pj = tj * unit_conversion # value in PJ
                     ti[f"{energy_category}_old"] += pj
                     sums[f"{energy_category}_old"] += pj
                     print(f'{round(pj)}\t{country_name} {energy_category}: {ws["c6"].value} year {year}', file=dfile, flush=True)
-                    ti[f"{energy_category}_savings"]+= pj * (1 - savings_rates[energy_category])
-                    sums[f"{energy_category}_savings"] += pj * (1 - savings_rates[energy_category])
-                    ti["substitution"] += pj * savings_rates[energy_category]
-                    sums["substitution"] += pj * savings_rates[energy_category]
+                    ti[f"{energy_category}_savings"]+= pj * saving_rates[energy_category]
+                    sums[f"{energy_category}_savings"] += pj * saving_rates[energy_category]
+                    ti["substitution"] += pj * saving_rates[energy_category]
+                    sums["substitution"] += pj * saving_rates[energy_category]
 
-        ti["balance"] = ti["substitution"] - ti["gas_imports_russia"]
+        ti["imports_savings"] = ti["imports_old"] *  saving_rates["imports"]
+        ti["substitution"] += ti["imports_savings"]
+        sums["imports_savings"] += ti["imports_savings"]
+        ti["balance"] = ti["substitution"] - ti["imports_old"]
         sums["balance"] += ti["balance"]
 
         for t in table_item_names:
@@ -126,17 +130,21 @@ def scenario(savings_rates, year):
             for ti in table_item_names:
                 print(f'{round(sums[ti])}\t', end="")
             print("")
-            summary(country_name, country, sums)
+            summary("SUM EU", country, sums)
 
         if (country == 54): # After Ukraine
             print("SUM Europe\t", end="")
             for ti in table_item_names:
                 print(f'{round(sums[ti])}\t', end="")
             print("")
+            summary("SUM Europe", country, sums)
 
-scenario({"household": 0.85, "commercial": 0.85, "electricity": 0.5, "industry": 0.08, "transport": 0.0, "other": 0.0}, 2020)
-scenario({"household": 0.85, "commercial": 0.85, "electricity": 0.5, "industry": 0.08, "transport": 0.0, "other": 0.0}, 2019)
-scenario({"household": 0.73, "commercial": 0.73, "electricity": 0.2, "industry": 0.08, "transport": 0.0, "other": 0.0}, 2020)
-scenario({"household": 0.73, "commercial": 0.73, "electricity": 0.2, "industry": 0.08, "transport": 0.0, "other": 0.0}, 2019)
+
+scenario({"imports": 0.35, "household": 0.405, "commercial": 0.405, "electricity": 0.2, "industry": 0.08, "transport": 0.0, "other": 0.0}, 2019)
+# scenario({"imports": 0.0, "household": 0.73, "commercial": 0.73, "electricity": 0.2, "industry": 0.08, "transport": 0.0, "other": 0.0}, 2020)
+scenario({"imports": 0.0, "household": 0.73, "commercial": 0.73, "electricity": 0.2, "industry": 0.08, "transport": 0.0, "other": 0.0}, 2019)
+# scenario({"imports": 0.0, "household": 0.85, "commercial": 0.85, "electricity": 0.5, "industry": 0.08, "transport": 0.0, "other": 0.0}, 2020)
+scenario({"imports": 0.0, "household": 0.85, "commercial": 0.85, "electricity": 0.5, "industry": 0.08, "transport": 0.0, "other": 0.0}, 2019)
+
 
 
